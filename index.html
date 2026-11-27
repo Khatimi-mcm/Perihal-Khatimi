@@ -14,7 +14,6 @@ h1{font-size:22px;letter-spacing:.08em;text-align:center;margin:18px 0 4px}
 a.menu,div.menu,button.menu{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:20px;margin-bottom:14px;color:var(--tx);font:inherit;cursor:pointer;text-decoration:none}
 .menu small{display:block;color:var(--mu);font-size:12px;letter-spacing:.1em}
 .menu b{font-size:19px;letter-spacing:.04em}
-button.m{border:1px solid var(--bd)}
 .top button{background:none;border:0;color:var(--ac);font:inherit;font-weight:600;cursor:pointer;padding:0 0 10px}
 h2{font-size:18px;margin:0;letter-spacing:.05em}
 .tabs{display:flex;gap:8px;margin:14px 0 16px}
@@ -27,10 +26,17 @@ textarea{min-height:110px;resize:vertical}
 button.b{padding:12px;border-radius:12px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font:inherit;cursor:pointer}
 button.p{width:100%;margin-top:20px;padding:14px;border:0;border-radius:12px;background:var(--ac);color:#fff;font:inherit;font-weight:600;cursor:pointer}
 button.p:disabled{opacity:.6}
-.pv{margin-top:10px;position:relative;display:none}.pv img{width:100%;border-radius:12px;display:block}
-.pv button{position:absolute;top:8px;right:8px}
+.gal{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.ph{position:relative}
+.ph img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;display:block}
+.ph button{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;border:0;background:rgba(0,0,0,.65);color:#fff;font-size:13px;cursor:pointer;padding:0}
+.ph i{position:absolute;left:4px;bottom:4px;background:var(--ac);color:#fff;font-size:10px;font-style:normal;padding:1px 6px;border-radius:99px}
+.hint{font-size:12px;color:var(--mu);margin-top:6px}
 .it{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
-.it img{width:100%;max-height:260px;object-fit:cover;border-radius:10px;margin-top:10px}
+.pics{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
+.pics.one{grid-template-columns:1fr}
+.pics img{width:100%;height:150px;object-fit:cover;border-radius:10px;display:block}
+.pics.one img{height:auto;max-height:300px}
 .meta{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:13px;color:var(--mu)}
 .tag{background:var(--ac2);color:var(--ac);padding:2px 10px;border-radius:99px;font-weight:600;font-size:12px}
 .it p{margin:8px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -43,37 +49,44 @@ button.p:disabled{opacity:.6}
 .edn{background:var(--ac2);color:var(--ac);padding:8px 12px;border-radius:10px;font-size:13px;margin-top:12px}
 </style></head><body><div class="w" id="app"></div><div class="toast" id="toast"></div>
 <script>
-// === TAMPAL PAUTAN WEB APP APPS SCRIPT ANDA DI SINI ===
 var API="https://script.google.com/macros/s/AKfycbw8oj5z2EWh4W97daQnheHjDZEy9F1MSvkICTAEqK6eYTEvE5StJ-zPkno378zrWNfM/exec";
 var PERBELANJAAN="https://khatimi-mcm.github.io/Perbelanjaan-Khatimi";
 var TYPES=["Keluarga","Saudara mara","Event","Pekerjaan","Fitness","Ilmu/Kemahiran","Lain-lain"];
-var photo="",oldPhoto="",rmPhoto=false,DATA=[];
+var MAXP=10;
+var newP=[],oldIds=[],rmIds=[],pending=0,DATA=[];
 function $(i){return document.getElementById(i)}
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
 function today(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 function toast(t){var e=$("toast");e.textContent=t;e.style.display="block";setTimeout(function(){e.style.display="none"},2500)}
 function opts(sel,all){return (all?'<option value="">Semua</option>':"")+TYPES.map(function(x){return "<option"+(x===sel?" selected":"")+">"+x+"</option>"}).join("")}
-function thumb(id){return "https://drive.google.com/thumbnail?id="+encodeURIComponent(id)+"&sz=w800"}
+function thumb(id,w){return "https://drive.google.com/thumbnail?id="+encodeURIComponent(id)+"&sz=w"+(w||600)}
+function ids(s){return s?String(s).split(",").filter(Boolean):[]}
 function call(o){return fetch(API,{method:"POST",body:JSON.stringify(o)}).then(function(r){return r.json()}).then(function(j){if(!j.ok)throw new Error(j.error||"Gagal");return j})}
 function load(){return fetch(API+"?action=list").then(function(r){return r.json()}).then(function(j){if(!j.ok)throw new Error(j.error||"Gagal");return j.data})}
-function shrink(f,cb){var r=new FileReader();r.onload=function(){var im=new Image();im.onload=function(){var m=900,s=Math.min(1,m/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=im.width*s;c.height=im.height*s;c.getContext("2d").drawImage(im,0,0,c.width,c.height);cb(c.toDataURL("image/jpeg",.72))};im.src=r.result};r.readAsDataURL(f)}
-function home(){$("app").innerHTML='<h1>PERIHAL KHATIMI</h1><p class="sub">Pilih menu</p><button class="menu m" id="m1"><small>MENU 1</small><b>PERISTIWA KHATIMI</b></button><a class="menu" href="'+PERBELANJAAN+'"><small>MENU 2</small><b>PERBELANJAAN KHATIMI</b></a>';$("m1").onclick=function(){rekod()}}
+function shrink(f,cb){var r=new FileReader();r.onload=function(){var im=new Image();im.onload=function(){var m=900,s=Math.min(1,m/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=im.width*s;c.height=im.height*s;c.getContext("2d").drawImage(im,0,0,c.width,c.height);cb(c.toDataURL("image/jpeg",.72))};im.onerror=function(){cb(null)};im.src=r.result};r.onerror=function(){cb(null)};r.readAsDataURL(f)}
+function home(){$("app").innerHTML='<h1>PERIHAL KHATIMI</h1><p class="sub">Pilih menu</p><button class="menu" id="m1"><small>MENU 1</small><b>PERISTIWA KHATIMI</b></button><a class="menu" href="'+PERBELANJAAN+'"><small>MENU 2</small><b>PERBELANJAAN KHATIMI</b></a>';$("m1").onclick=function(){rekod()}}
 function head(on){return '<div class="top"><button id="hm">‹ Menu</button></div><h2>PERISTIWA KHATIMI</h2><div class="tabs"><button id="tr" class="'+(on=="r"?"on":"")+'">Perekodan</button><button id="tl" class="'+(on=="l"?"on":"")+'">Laporan</button></div>'}
 function wire(){$("hm").onclick=home;$("tr").onclick=function(){rekod()};$("tl").onclick=laporan}
-function rekod(it){var ed=!!(it&&it.id);photo="";rmPhoto=false;oldPhoto=ed?it.photo:"";
-$("app").innerHTML=head("r")+(ed?'<div class="edn">✏️ Menyunting peristiwa. Tekan "Perekodan" untuk batal.</div>':"")+
-'<label>TARIKH</label><input type="date" id="d" value="'+(ed?esc(it.date):today())+'"><label>JENIS PERISTIWA</label><select id="t">'+opts(ed?it.type:"")+'</select><label>KETERANGAN</label><textarea id="k" placeholder="Contoh: Hari lahir Yaya">'+(ed?esc(it.desc||""):"")+'</textarea><label>GAMBAR</label><div class="row"><button class="b" id="bc">📷 Ambil gambar</button><button class="b" id="bg">🖼️ Pilih dari galeri</button></div><input type="file" id="fc" accept="image/*" capture="environment" hidden><input type="file" id="fg" accept="image/*" hidden><div class="pv" id="pv"><img id="pi" alt=""><button class="b" id="px">✕</button></div><button class="p" id="sv">'+(ed?"Simpan Perubahan":"Simpan Peristiwa")+'</button>';
-wire();
-if(oldPhoto){$("pi").src=thumb(oldPhoto);$("pv").style.display="block"}
-function got(e){var f=e.target.files[0];if(!f)return;shrink(f,function(u){photo=u;rmPhoto=false;$("pi").src=u;$("pv").style.display="block"})}
+function total(){return oldIds.length-rmIds.length+newP.length}
+function gal(){var h="";
+oldIds.forEach(function(id){if(rmIds.indexOf(id)<0)h+='<div class="ph"><img src="'+thumb(id,300)+'" alt=""><button data-o="'+esc(id)+'">✕</button></div>'});
+newP.forEach(function(u,i){h+='<div class="ph"><img src="'+u+'" alt=""><i>baharu</i><button data-n="'+i+'">✕</button></div>'});
+$("gal").innerHTML=h;$("hint").textContent=total()?total()+" gambar (maksimum "+MAXP+")":"";
+document.querySelectorAll("#gal button").forEach(function(b){b.onclick=function(){if(b.dataset.o)rmIds.push(b.dataset.o);else newP.splice(Number(b.dataset.n),1);gal()}})}
+function rekod(it){var ed=!!(it&&it.id);newP=[];rmIds=[];pending=0;oldIds=ed?ids(it.photo):[];
+$("app").innerHTML=head("r")+(ed?'<div class="edn">✏️ Menyunting peristiwa. Gambar baharu akan <b>ditambah</b> kepada gambar sedia ada. Tekan "Perekodan" untuk batal.</div>':"")+
+'<label>TARIKH</label><input type="date" id="d" value="'+(ed?esc(it.date):today())+'"><label>JENIS PERISTIWA</label><select id="t">'+opts(ed?it.type:"")+'</select><label>KETERANGAN</label><textarea id="k" placeholder="Contoh: Hari lahir Yaya">'+(ed?esc(it.desc||""):"")+'</textarea><label>GAMBAR</label><div class="row"><button class="b" id="bc">📷 Ambil gambar</button><button class="b" id="bg">🖼️ Pilih dari galeri</button></div><input type="file" id="fc" accept="image/*" capture="environment" hidden><input type="file" id="fg" accept="image/*" multiple hidden><div class="gal" id="gal"></div><div class="hint" id="hint"></div><button class="p" id="sv">'+(ed?"Simpan Perubahan":"Simpan Peristiwa")+'</button>';
+wire();gal();
+function got(e){var fs=Array.prototype.slice.call(e.target.files);e.target.value="";
+fs.forEach(function(f){if(total()+pending>=MAXP){toast("Maksimum "+MAXP+" gambar");return}
+pending++;shrink(f,function(u){pending--;if(u&&total()<MAXP)newP.push(u);gal()})})}
 $("bc").onclick=function(){$("fc").click()};$("bg").onclick=function(){$("fg").click()};
 $("fc").onchange=got;$("fg").onchange=got;
-$("px").onclick=function(){photo="";if(oldPhoto)rmPhoto=true;$("pv").style.display="none"};
 $("sv").onclick=function(){var k=$("k").value.trim(),d=$("d").value;
-var hasPic=photo||(oldPhoto&&!rmPhoto);
-if(!d){toast("Sila pilih tarikh");return}if(!k&&!hasPic){toast("Isi keterangan atau gambar");return}
+if(pending>0){toast("Tunggu gambar diproses...");return}
+if(!d){toast("Sila pilih tarikh");return}if(!k&&!total()){toast("Isi keterangan atau gambar");return}
 $("sv").disabled=true;$("sv").textContent="Menyimpan...";
-var o={action:ed?"kemaskini":"simpan",id:ed?it.id:"",date:d,type:$("t").value,desc:k,photo:photo,removePhoto:rmPhoto};
+var o={action:ed?"kemaskini":"simpan",id:ed?it.id:"",date:d,type:$("t").value,desc:k,photos:newP,removeIds:rmIds};
 call(o).then(function(){toast(ed?"Dikemaskini ✓":"Disimpan ✓");if(ed)laporan();else rekod()}).catch(function(e){toast("Ralat: "+e.message);$("sv").disabled=false;$("sv").textContent=ed?"Simpan Perubahan":"Simpan Peristiwa"})}}
 function laporan(){
 $("app").innerHTML=head("l")+'<div class="row"><div><label>DARI</label><input type="date" id="a"></div><div><label>HINGGA</label><input type="date" id="z"></div></div><label>CARI (cth: yaya)</label><input type="search" id="s" placeholder="Cari keterangan..."><label>JENIS</label><select id="t">'+opts("",true)+'</select><div class="cnt" id="c">Memuatkan...</div><div id="l"></div>';
@@ -83,7 +96,7 @@ function draw(){var a=v("a"),z=v("z"),s=v("s").toLowerCase(),t=v("t");
 var r=DATA.filter(function(x){return(!a||x.date>=a)&&(!z||x.date<=z)&&(!t||x.type===t)&&(!s||(x.desc||"").toLowerCase().indexOf(s)>-1)});
 r.sort(function(p,q){return q.date<p.date?-1:q.date>p.date?1:(q.ts<p.ts?-1:1)});
 $("c").textContent=r.length+" peristiwa";
-$("l").innerHTML=r.length?r.map(function(x){return '<div class="it"><div class="meta"><span>'+esc(x.date)+'</span><span class="tag">'+esc(x.type)+'</span></div><p>'+esc(x.desc||"")+'</p>'+(x.photo?'<img loading="lazy" src="'+thumb(x.photo)+'" alt="">':"")+'<div class="act"><button class="ed" data-id="'+esc(x.id)+'">✏️ Sunting</button><button class="del" data-id="'+esc(x.id)+'">Padam</button></div></div>'}).join(""):'<p class="note">Tiada peristiwa dijumpai.</p>';
+$("l").innerHTML=r.length?r.map(function(x){var p=ids(x.photo);return '<div class="it"><div class="meta"><span>'+esc(x.date)+'</span><span class="tag">'+esc(x.type)+'</span></div><p>'+esc(x.desc||"")+'</p>'+(p.length?'<div class="pics'+(p.length==1?" one":"")+'">'+p.map(function(id){return '<a href="'+thumb(id,1600)+'" target="_blank"><img loading="lazy" src="'+thumb(id,600)+'" alt=""></a>'}).join("")+'</div>':"")+'<div class="act"><button class="ed" data-id="'+esc(x.id)+'">✏️ Sunting</button><button class="del" data-id="'+esc(x.id)+'">Padam</button></div></div>'}).join(""):'<p class="note">Tiada peristiwa dijumpai.</p>';
 document.querySelectorAll(".ed").forEach(function(b){b.onclick=function(){var it=DATA.filter(function(x){return x.id===b.dataset.id})[0];if(it){rekod(it);window.scrollTo(0,0)}}});
 document.querySelectorAll(".del").forEach(function(b){b.onclick=function(){if(confirm("Padam peristiwa ini?"))call({action:"padam",id:b.dataset.id}).then(function(){DATA=DATA.filter(function(x){return x.id!==b.dataset.id});draw();toast("Dipadam")}).catch(function(e){toast("Ralat: "+e.message)})}})}
 ["a","z","s","t"].forEach(function(i){$(i).oninput=draw});
