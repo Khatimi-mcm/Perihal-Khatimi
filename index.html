@@ -61,10 +61,17 @@ function toast(t){var e=$("toast");e.textContent=t;e.style.display="block";setTi
 function opts(sel,all){return (all?'<option value="">Semua</option>':"")+TYPES.map(function(x){return "<option"+(x===sel?" selected":"")+">"+x+"</option>"}).join("")}
 function thumb(id,w){return "https://drive.google.com/thumbnail?id="+encodeURIComponent(id)+"&sz=w"+(w||600)}
 function ids(s){return s?String(s).split(",").filter(Boolean):[]}
-function call(o){return fetch(API,{method:"POST",body:JSON.stringify(o)}).then(function(r){return r.json()}).then(function(j){if(!j.ok)throw new Error(j.error||"Gagal");return j})}
-function load(){return fetch(API+"?action=list").then(function(r){return r.json()}).then(function(j){if(!j.ok)throw new Error(j.error||"Gagal");return j.data})}
+var PW="";try{PW=localStorage.getItem("kh_pw")||""}catch(e){}
+function forget(){PW="";try{localStorage.removeItem("kh_pw")}catch(e){}}
+function call(o){o.pw=PW;return fetch(API,{method:"POST",body:JSON.stringify(o)}).then(function(r){return r.json()}).then(function(j){if(!j.ok){if(j.auth)forget();var e=new Error(j.error||"Gagal");e.auth=!!j.auth;throw e}return j})}
+function load(){return call({action:"list"}).then(function(j){return j.data})}
+function err(e){if(e.auth)login(e.message);else toast("Ralat: "+e.message)}
+function login(msg){$("app").innerHTML='<h1>PERIHAL KHATIMI</h1><p class="sub">Sila masukkan kata laluan</p><input type="password" id="pw" placeholder="Kata laluan" autocomplete="current-password"><label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:14px"><input type="checkbox" id="rm" style="width:auto"> Ingat pada peranti ini</label><button class="p" id="go">Masuk</button><div class="note" id="lm">'+esc(msg||"")+'</div>';
+function go(){var p=$("pw").value;if(!p)return;$("go").disabled=true;$("go").textContent="Menyemak...";PW=p;
+call({action:"semak"}).then(function(){try{if($("rm").checked)localStorage.setItem("kh_pw",p)}catch(e){}home()}).catch(function(e){$("lm").textContent=e.message;$("go").disabled=false;$("go").textContent="Masuk"})}
+$("go").onclick=go;$("pw").onkeydown=function(e){if(e.key==="Enter")go()}}
 function shrink(f,cb){var r=new FileReader();r.onload=function(){var im=new Image();im.onload=function(){var m=900,s=Math.min(1,m/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=im.width*s;c.height=im.height*s;c.getContext("2d").drawImage(im,0,0,c.width,c.height);cb(c.toDataURL("image/jpeg",.72))};im.onerror=function(){cb(null)};im.src=r.result};r.onerror=function(){cb(null)};r.readAsDataURL(f)}
-function home(){$("app").innerHTML='<h1>PERIHAL KHATIMI</h1><p class="sub">Pilih menu</p><button class="menu" id="m1"><small>MENU 1</small><b>PERISTIWA KHATIMI</b></button><a class="menu" href="'+PERBELANJAAN+'"><small>MENU 2</small><b>PERBELANJAAN KHATIMI</b></a>';$("m1").onclick=function(){rekod()}}
+function home(){$("app").innerHTML='<h1>PERIHAL KHATIMI</h1><p class="sub">Pilih menu</p><button class="menu" id="m1"><small>MENU 1</small><b>PERISTIWA KHATIMI</b></button><a class="menu" href="'+PERBELANJAAN+'"><small>MENU 2</small><b>PERBELANJAAN KHATIMI</b></a><button class="b" id="lo" style="width:100%;margin-top:6px">Log keluar</button>';$("lo").onclick=function(){forget();login()};$("m1").onclick=function(){rekod()}}
 function head(on){return '<div class="top"><button id="hm">‹ Menu</button></div><h2>PERISTIWA KHATIMI</h2><div class="tabs"><button id="tr" class="'+(on=="r"?"on":"")+'">Perekodan</button><button id="tl" class="'+(on=="l"?"on":"")+'">Laporan</button></div>'}
 function wire(){$("hm").onclick=home;$("tr").onclick=function(){rekod()};$("tl").onclick=laporan}
 function total(){return oldIds.length-rmIds.length+newP.length}
@@ -87,7 +94,7 @@ if(pending>0){toast("Tunggu gambar diproses...");return}
 if(!d){toast("Sila pilih tarikh");return}if(!k&&!total()){toast("Isi keterangan atau gambar");return}
 $("sv").disabled=true;$("sv").textContent="Menyimpan...";
 var o={action:ed?"kemaskini":"simpan",id:ed?it.id:"",date:d,type:$("t").value,desc:k,photos:newP,removeIds:rmIds};
-call(o).then(function(){toast(ed?"Dikemaskini ✓":"Disimpan ✓");if(ed)laporan();else rekod()}).catch(function(e){toast("Ralat: "+e.message);$("sv").disabled=false;$("sv").textContent=ed?"Simpan Perubahan":"Simpan Peristiwa"})}}
+call(o).then(function(){toast(ed?"Dikemaskini ✓":"Disimpan ✓");if(ed)laporan();else rekod()}).catch(function(e){err(e);$("sv").disabled=false;$("sv").textContent=ed?"Simpan Perubahan":"Simpan Peristiwa"})}}
 function laporan(){
 $("app").innerHTML=head("l")+'<div class="row"><div><label>DARI</label><input type="date" id="a"></div><div><label>HINGGA</label><input type="date" id="z"></div></div><label>CARI (cth: yaya)</label><input type="search" id="s" placeholder="Cari keterangan..."><label>JENIS</label><select id="t">'+opts("",true)+'</select><div class="cnt" id="c">Memuatkan...</div><div id="l"></div>';
 wire();
@@ -98,8 +105,8 @@ r.sort(function(p,q){return q.date<p.date?-1:q.date>p.date?1:(q.ts<p.ts?-1:1)});
 $("c").textContent=r.length+" peristiwa";
 $("l").innerHTML=r.length?r.map(function(x){var p=ids(x.photo);return '<div class="it"><div class="meta"><span>'+esc(x.date)+'</span><span class="tag">'+esc(x.type)+'</span></div><p>'+esc(x.desc||"")+'</p>'+(p.length?'<div class="pics'+(p.length==1?" one":"")+'">'+p.map(function(id){return '<a href="'+thumb(id,1600)+'" target="_blank"><img loading="lazy" src="'+thumb(id,600)+'" alt=""></a>'}).join("")+'</div>':"")+'<div class="act"><button class="ed" data-id="'+esc(x.id)+'">✏️ Sunting</button><button class="del" data-id="'+esc(x.id)+'">Padam</button></div></div>'}).join(""):'<p class="note">Tiada peristiwa dijumpai.</p>';
 document.querySelectorAll(".ed").forEach(function(b){b.onclick=function(){var it=DATA.filter(function(x){return x.id===b.dataset.id})[0];if(it){rekod(it);window.scrollTo(0,0)}}});
-document.querySelectorAll(".del").forEach(function(b){b.onclick=function(){if(confirm("Padam peristiwa ini?"))call({action:"padam",id:b.dataset.id}).then(function(){DATA=DATA.filter(function(x){return x.id!==b.dataset.id});draw();toast("Dipadam")}).catch(function(e){toast("Ralat: "+e.message)})}})}
+document.querySelectorAll(".del").forEach(function(b){b.onclick=function(){if(confirm("Padam peristiwa ini?"))call({action:"padam",id:b.dataset.id}).then(function(){DATA=DATA.filter(function(x){return x.id!==b.dataset.id});draw();toast("Dipadam")}).catch(function(e){err(e)})}})}
 ["a","z","s","t"].forEach(function(i){$(i).oninput=draw});
-load().then(function(r){DATA=r||[];draw()}).catch(function(e){$("c").textContent="Ralat memuatkan data: "+e.message})}
-home();
+load().then(function(r){DATA=r||[];draw()}).catch(function(e){if(e.auth)login(e.message);else $("c").textContent="Ralat memuatkan data: "+e.message})}
+if(PW){$("app").innerHTML='<p class="sub" style="margin-top:80px">Memuatkan...</p>';call({action:"semak"}).then(home).catch(function(e){login(e.auth?e.message:"Tiada sambungan: "+e.message)})}else login();
 </script></body></html>
