@@ -32,6 +32,11 @@ button.p:disabled{opacity:.6}
 .ph button{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;border:0;background:rgba(0,0,0,.65);color:#fff;font-size:13px;cursor:pointer;padding:0}
 .ph i{position:absolute;left:4px;bottom:4px;background:var(--ac);color:#fff;font-size:10px;font-style:normal;padding:1px 6px;border-radius:99px}
 .hint{font-size:12px;color:var(--mu);margin-top:6px}
+.row.three button{font-size:14px;padding:12px 4px}
+.dc{display:flex;align-items:center;gap:8px;background:var(--ac2);color:var(--tx);border-radius:10px;padding:9px 12px;margin-top:6px;font-size:14px;text-decoration:none}
+.dc span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dc button{background:none;border:0;color:var(--dn);font-size:16px;cursor:pointer;padding:0 2px}
+.docs{margin-top:10px}
 .it{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
 .pics{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
 .pics.one{grid-template-columns:1fr}
@@ -51,9 +56,10 @@ button.p:disabled{opacity:.6}
 <script>
 var API="https://script.google.com/macros/s/AKfycbw8oj5z2EWh4W97daQnheHjDZEy9F1MSvkICTAEqK6eYTEvE5StJ-zPkno378zrWNfM/exec";
 var PERBELANJAAN="https://khatimi-mcm.github.io/Perbelanjaan-Khatimi";
-var TYPES=["Keluarga","Saudara mara","Event","Pekerjaan","Fitness","Ilmu/Kemahiran","Lain-lain"];
+var TYPES=["Keluarga","Saudara mara","Event","Pekerjaan","Fitness","Ilmu/Kemahiran","Dokumentasi","Lain-lain"];
 var MAXP=10;
-var newP=[],oldIds=[],rmIds=[],pending=0,DATA=[];
+var newP=[],oldIds=[],rmIds=[],newD=[],oldD=[],rmD=[],pending=0,DATA=[];
+var MAXD=8,MAXMB=5;
 function $(i){return document.getElementById(i)}
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
 function today(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
@@ -71,29 +77,41 @@ function go(){var p=$("pw").value;if(!p)return;$("go").disabled=true;$("go").tex
 call({action:"semak"}).then(function(){try{if($("rm").checked)localStorage.setItem("kh_pw",p)}catch(e){}home()}).catch(function(e){$("lm").textContent=e.message;$("go").disabled=false;$("go").textContent="Masuk"})}
 $("go").onclick=go;$("pw").onkeydown=function(e){if(e.key==="Enter")go()}}
 function shrink(f,cb){var r=new FileReader();r.onload=function(){var im=new Image();im.onload=function(){var m=900,s=Math.min(1,m/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=im.width*s;c.height=im.height*s;c.getContext("2d").drawImage(im,0,0,c.width,c.height);cb(c.toDataURL("image/jpeg",.72))};im.onerror=function(){cb(null)};im.src=r.result};r.onerror=function(){cb(null)};r.readAsDataURL(f)}
-function home(){$("app").innerHTML='<h1>PERIHAL KHATIMI</h1><p class="sub">Pilih menu</p><button class="menu" id="m1"><small>MENU 1</small><b>PERISTIWA KHATIMI</b></button><a class="menu" href="'+PERBELANJAAN+'"><small>MENU 2</small><b>PERBELANJAAN KHATIMI</b></a><button class="b" id="lo" style="width:100%;margin-top:6px">Log keluar</button>';$("lo").onclick=function(){forget();login()};$("m1").onclick=function(){rekod()}}
-function head(on){return '<div class="top"><button id="hm">‹ Menu</button></div><h2>PERISTIWA KHATIMI</h2><div class="tabs"><button id="tr" class="'+(on=="r"?"on":"")+'">Perekodan</button><button id="tl" class="'+(on=="l"?"on":"")+'">Laporan</button></div>'}
+function home(){$("app").innerHTML='<h1>PERIHAL KHATIMI</h1><p class="sub">Pilih menu</p><button class="menu" id="m1"><small>MENU 1</small><b>ARKIB MEMORI &amp; DOKUMEN</b></button><a class="menu" href="'+PERBELANJAAN+'"><small>MENU 2</small><b>PERBELANJAAN KHATIMI</b></a><button class="b" id="lo" style="width:100%;margin-top:6px">Log keluar</button>';$("lo").onclick=function(){forget();login()};$("m1").onclick=function(){rekod()}}
+function head(on){return '<div class="top"><button id="hm">‹ Menu</button></div><h2>ARKIB MEMORI &amp; DOKUMEN</h2><div class="tabs"><button id="tr" class="'+(on=="r"?"on":"")+'">Perekodan</button><button id="tl" class="'+(on=="l"?"on":"")+'">Laporan</button></div>'}
 function wire(){$("hm").onclick=home;$("tr").onclick=function(){rekod()};$("tl").onclick=laporan}
 function total(){return oldIds.length-rmIds.length+newP.length}
-function gal(){var h="";
+function dcount(){return oldD.length-rmD.length+newD.length}
+function dl(){var h="";
+oldD.forEach(function(d){if(rmD.indexOf(d.id)<0)h+='<div class="dc"><span>📄 '+esc(d.name)+'</span><button data-od="'+esc(d.id)+'">✕</button></div>'});
+newD.forEach(function(d,i){h+='<div class="dc"><span>📄 '+esc(d.name)+' (baharu)</span><button data-nd="'+i+'">✕</button></div>'});
+$("dlist").innerHTML=h;
+document.querySelectorAll("#dlist button").forEach(function(b){b.onclick=function(){if(b.dataset.od)rmD.push(b.dataset.od);else newD.splice(Number(b.dataset.nd),1);dl()}})}
+function readDoc(f,cb){if(f.size>MAXMB*1024*1024){toast(f.name+" melebihi "+MAXMB+" MB");cb(null);return}
+var r=new FileReader();r.onload=function(){cb({name:f.name,mime:f.type||"application/octet-stream",data:String(r.result).split(",")[1]})};r.onerror=function(){cb(null)};r.readAsDataURL(f)}
+function dlinks(x){var d=x.docs||[];return d.length?'<div class="docs">'+d.map(function(f){return '<a class="dc" target="_blank" href="https://drive.google.com/file/d/'+encodeURIComponent(f.id)+'/view"><span>📄 '+esc(f.name)+'</span></a>'}).join("")+'</div>':""}
+function gal(){dl();var h="";
 oldIds.forEach(function(id){if(rmIds.indexOf(id)<0)h+='<div class="ph"><img src="'+thumb(id,300)+'" alt=""><button data-o="'+esc(id)+'">✕</button></div>'});
 newP.forEach(function(u,i){h+='<div class="ph"><img src="'+u+'" alt=""><i>baharu</i><button data-n="'+i+'">✕</button></div>'});
 $("gal").innerHTML=h;$("hint").textContent=total()?total()+" gambar (maksimum "+MAXP+")":"";
 document.querySelectorAll("#gal button").forEach(function(b){b.onclick=function(){if(b.dataset.o)rmIds.push(b.dataset.o);else newP.splice(Number(b.dataset.n),1);gal()}})}
-function rekod(it){var ed=!!(it&&it.id);newP=[];rmIds=[];pending=0;oldIds=ed?ids(it.photo):[];
-$("app").innerHTML=head("r")+(ed?'<div class="edn">✏️ Menyunting peristiwa. Gambar baharu akan <b>ditambah</b> kepada gambar sedia ada. Tekan "Perekodan" untuk batal.</div>':"")+
-'<label>TARIKH</label><input type="date" id="d" value="'+(ed?esc(it.date):today())+'"><label>JENIS PERISTIWA</label><select id="t">'+opts(ed?it.type:"")+'</select><label>KETERANGAN</label><textarea id="k" placeholder="Contoh: Hari lahir Yaya">'+(ed?esc(it.desc||""):"")+'</textarea><label>GAMBAR</label><div class="row"><button class="b" id="bc">📷 Ambil gambar</button><button class="b" id="bg">🖼️ Pilih dari galeri</button></div><input type="file" id="fc" accept="image/*" capture="environment" hidden><input type="file" id="fg" accept="image/*" multiple hidden><div class="gal" id="gal"></div><div class="hint" id="hint"></div><button class="p" id="sv">'+(ed?"Simpan Perubahan":"Simpan Peristiwa")+'</button>';
+function rekod(it){var ed=!!(it&&it.id);newP=[];rmIds=[];newD=[];rmD=[];pending=0;oldIds=ed?ids(it.photo):[];oldD=ed?(it.docs||[]):[];
+$("app").innerHTML=head("r")+(ed?'<div class="edn">✏️ Menyunting peristiwa. Gambar dan dokumen baharu akan <b>ditambah</b> kepada yang sedia ada. Tekan "Perekodan" untuk batal.</div>':"")+
+'<label>TARIKH</label><input type="date" id="d" value="'+(ed?esc(it.date):today())+'"><label>JENIS MEMORI &amp; KENANGAN</label><select id="t">'+opts(ed?it.type:"")+'</select><label>KETERANGAN</label><textarea id="k" placeholder="Contoh: Hari lahir Yaya">'+(ed?esc(it.desc||""):"")+'</textarea><label>GAMBAR &amp; DOKUMEN</label><div class="row three"><button class="b" id="bc">📷 Kamera</button><button class="b" id="bg">🖼️ Galeri</button><button class="b" id="bd">📄 Dokumen</button></div><input type="file" id="fc" accept="image/*" capture="environment" hidden><input type="file" id="fg" accept="image/*" multiple hidden><input type="file" id="fd" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,application/pdf" multiple hidden><div class="gal" id="gal"></div><div class="hint" id="hint"></div><div class="docs" id="dlist"></div><div class="hint">Dokumen: PDF, Word, Excel, PowerPoint, teks (maksimum '+MAXMB+' MB sekeping)</div><button class="p" id="sv">'+(ed?"Simpan Perubahan":"Simpan Peristiwa")+'</button>';
 wire();gal();
 function got(e){var fs=Array.prototype.slice.call(e.target.files);e.target.value="";
 fs.forEach(function(f){if(total()+pending>=MAXP){toast("Maksimum "+MAXP+" gambar");return}
 pending++;shrink(f,function(u){pending--;if(u&&total()<MAXP)newP.push(u);gal()})})}
-$("bc").onclick=function(){$("fc").click()};$("bg").onclick=function(){$("fg").click()};
-$("fc").onchange=got;$("fg").onchange=got;
+function gotD(e){var fs=Array.prototype.slice.call(e.target.files);e.target.value="";
+fs.forEach(function(f){if(dcount()+pending>=MAXD){toast("Maksimum "+MAXD+" dokumen");return}
+pending++;readDoc(f,function(d){pending--;if(d&&dcount()<MAXD)newD.push(d);dl()})})}
+$("bc").onclick=function(){$("fc").click()};$("bg").onclick=function(){$("fg").click()};$("bd").onclick=function(){$("fd").click()};
+$("fc").onchange=got;$("fg").onchange=got;$("fd").onchange=gotD;
 $("sv").onclick=function(){var k=$("k").value.trim(),d=$("d").value;
 if(pending>0){toast("Tunggu gambar diproses...");return}
-if(!d){toast("Sila pilih tarikh");return}if(!k&&!total()){toast("Isi keterangan atau gambar");return}
+if(!d){toast("Sila pilih tarikh");return}if(!k&&!total()&&!dcount()){toast("Isi keterangan, gambar atau dokumen");return}
 $("sv").disabled=true;$("sv").textContent="Menyimpan...";
-var o={action:ed?"kemaskini":"simpan",id:ed?it.id:"",date:d,type:$("t").value,desc:k,photos:newP,removeIds:rmIds};
+var o={action:ed?"kemaskini":"simpan",id:ed?it.id:"",date:d,type:$("t").value,desc:k,photos:newP,removeIds:rmIds,docs:newD,removeDocIds:rmD};
 call(o).then(function(){toast(ed?"Dikemaskini ✓":"Disimpan ✓");if(ed)laporan();else rekod()}).catch(function(e){err(e);$("sv").disabled=false;$("sv").textContent=ed?"Simpan Perubahan":"Simpan Peristiwa"})}}
 function laporan(){
 $("app").innerHTML=head("l")+'<div class="row"><div><label>DARI</label><input type="date" id="a"></div><div><label>HINGGA</label><input type="date" id="z"></div></div><label>CARI (cth: yaya)</label><input type="search" id="s" placeholder="Cari keterangan..."><label>JENIS</label><select id="t">'+opts("",true)+'</select><div class="cnt" id="c">Memuatkan...</div><div id="l"></div>';
@@ -103,7 +121,7 @@ function draw(){var a=v("a"),z=v("z"),s=v("s").toLowerCase(),t=v("t");
 var r=DATA.filter(function(x){return(!a||x.date>=a)&&(!z||x.date<=z)&&(!t||x.type===t)&&(!s||(x.desc||"").toLowerCase().indexOf(s)>-1)});
 r.sort(function(p,q){return q.date<p.date?-1:q.date>p.date?1:(q.ts<p.ts?-1:1)});
 $("c").textContent=r.length+" peristiwa";
-$("l").innerHTML=r.length?r.map(function(x){var p=ids(x.photo);return '<div class="it"><div class="meta"><span>'+esc(x.date)+'</span><span class="tag">'+esc(x.type)+'</span></div><p>'+esc(x.desc||"")+'</p>'+(p.length?'<div class="pics'+(p.length==1?" one":"")+'">'+p.map(function(id){return '<a href="'+thumb(id,1600)+'" target="_blank"><img loading="lazy" src="'+thumb(id,600)+'" alt=""></a>'}).join("")+'</div>':"")+'<div class="act"><button class="ed" data-id="'+esc(x.id)+'">✏️ Sunting</button><button class="del" data-id="'+esc(x.id)+'">Padam</button></div></div>'}).join(""):'<p class="note">Tiada peristiwa dijumpai.</p>';
+$("l").innerHTML=r.length?r.map(function(x){var p=ids(x.photo);return '<div class="it"><div class="meta"><span>'+esc(x.date)+'</span><span class="tag">'+esc(x.type)+'</span></div><p>'+esc(x.desc||"")+'</p>'+(p.length?'<div class="pics'+(p.length==1?" one":"")+'">'+p.map(function(id){return '<a href="'+thumb(id,1600)+'" target="_blank"><img loading="lazy" src="'+thumb(id,600)+'" alt=""></a>'}).join("")+'</div>':"")+dlinks(x)+'<div class="act"><button class="ed" data-id="'+esc(x.id)+'">✏️ Sunting</button><button class="del" data-id="'+esc(x.id)+'">Padam</button></div></div>'}).join(""):'<p class="note">Tiada peristiwa dijumpai.</p>';
 document.querySelectorAll(".ed").forEach(function(b){b.onclick=function(){var it=DATA.filter(function(x){return x.id===b.dataset.id})[0];if(it){rekod(it);window.scrollTo(0,0)}}});
 document.querySelectorAll(".del").forEach(function(b){b.onclick=function(){if(confirm("Padam peristiwa ini?"))call({action:"padam",id:b.dataset.id}).then(function(){DATA=DATA.filter(function(x){return x.id!==b.dataset.id});draw();toast("Dipadam")}).catch(function(e){err(e)})}})}
 ["a","z","s","t"].forEach(function(i){$(i).oninput=draw});
